@@ -1,12 +1,7 @@
-#!/bin/bash
-# Executa teste de contrato e gera evidência com data/hora
-
 set -e
 
-# Cria diretório de evidências se não existir
 mkdir -p docs/test-strategy/evidencias
 
-# Gera timestamp no formato YYYYMMDD_HHMMSS
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="docs/test-strategy/evidencias/run-${TIMESTAMP}.txt"
 
@@ -17,7 +12,6 @@ echo "Issue #3 - Riscos #3 e #4" | tee -a "$LOG_FILE"
 echo "===========================================" | tee -a "$LOG_FILE"
 echo "" | tee -a "$LOG_FILE"
 
-# Verifica se API está rodando
 echo "Verificando API em http://localhost:8000..." | tee -a "$LOG_FILE"
 if curl -s -f -o /dev/null http://localhost:8000/; then
     echo "✓ API está respondendo" | tee -a "$LOG_FILE"
@@ -29,11 +23,10 @@ fi
 
 echo "" | tee -a "$LOG_FILE"
 
-# Executa testes
 echo "Executando pytest - test_api_leituras.py" | tee -a "$LOG_FILE"
 echo "-------------------------------------------" | tee -a "$LOG_FILE"
 
-pytest tests/contract/test_api_leituras.py \
+pytest test-strategy/contract/test_api_leituras.py \
     --tb=short \
     -v \
     2>&1 | tee -a "$LOG_FILE"
