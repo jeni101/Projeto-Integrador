@@ -26,7 +26,7 @@
 | **Jenifer Gomes** | Fullstack|
 | **Luís Gabriel** | Análise e Frontend |
 | **Philipe Gonçalves** | Hardware |
-| **Victor Herédia** | - |
+| **Victor Herédia** | Integração |
 
 ---
 
