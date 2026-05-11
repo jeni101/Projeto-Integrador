@@ -154,26 +154,26 @@ Foi adotada a técnica de **Contract Testing** para garantir a compatibilidade e
 3. **Testes no backend:** O framework de testes da API (Jest) importará o JSON Schema e validará automaticamente os payloads de exemplo e as respostas geradas. Teste `contract.api.complies-with-schema` garantirá que a API não desvia do contrato.
 4. **Geração de código para firmware:** Na pipeline de CI do firmware (PlatformIO), um script validará se as estruturas C++ (ex: `struct SensorReadings`) geram JSON compatível com o contrato. Um teste `contract.firmware.matches-schema` será executado a cada build.
 
-**Exemplo prático (contrato):**
+**Esquema do contrato implementado (`POST /leituras` — api-horta-ref v0.1):**
+
+O contrato adotado na implementação usa um schema simplificado com campo único `valor`, adequado para a API de referência do MVP:
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "definitions": {
-    "SensorReading": {
-      "type": "object",
-      "required": ["sensor_id", "temperature_c", "humidity_pct", "soil_moisture_pct", "timestamp_unix"],
-      "properties": {
-        "sensor_id": {"type": "string", "pattern": "^esp32_[a-f0-9]{12}$"},
-        "temperature_c": {"type": "number", "minimum": -10.0, "maximum": 85.0},
-        "humidity_pct": {"type": "number", "minimum": 0.0, "maximum": 100.0},
-        "soil_moisture_pct": {"type": "integer", "minimum": 0, "maximum": 100},
-        "timestamp_unix": {"type": "integer", "minimum": 1700000000}
-      }
-    }
-  }
+  "type": "object",
+  "required": ["device_id", "sensor", "valor", "timestamp"],
+  "properties": {
+    "device_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "sensor":    { "type": "string", "enum": ["dht22", "capacitivo", "ldr"] },
+    "valor":     { "type": "number" },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
 }
 ```
+
+> **Nota de evolução (v0.2):** A versão anterior deste ADR descrevia um schema-alvo com campos separados por grandeza física (`temperature_c`, `humidity_pct`, `soil_moisture_pct`, `sensor_id`). Essa estrutura representa o contrato de produção futuro e **não está implementada na api-horta-ref v0.1**. A migração será feita na v0.2 como breaking change versionado (`esp32-api-v2.json`), conforme a política de versionamento deste ADR. Rastreado em P-03 (Seção 1.8).
 
 ## 1.6 Política de Qualidade e Estratégia de Pipeline
 
@@ -218,17 +218,29 @@ A política de qualidade e regressão deve seguir as regras de proteção de bra
 
 ## 1.7 Evidência de Execução - Teste Contratual (ADR-001)
 
-Conforme definido no ADR-001 e ancorado na Issue #3 (Riscos #3 e #4), o teste de contrato valida se a comunicação entre o dispositivo IoT (ESP32) e a API de Referência respeita o esquema de dados JSON e as restrições de tipo.
+Conforme definido no ADR-001 e ancorado nos **Riscos #3** (UC-01 · FP Passos 7–10 — persistência + streaming) e **#4** (UC-02 · FP Passos 9–11 — timeout de ACK MQTT) da Matriz de Riscos (Seção 1.3), o teste de contrato valida se a comunicação entre o dispositivo IoT (ESP32) e a API de Referência respeita o esquema de dados JSON e as restrições de tipo.
 
 **Especificações do Teste:**
 
-* Arquivo de Teste: docs/test-strategy/contract/test_api_leituras.py
+* Arquivo de Teste: `docs/test-strategy/contract/test_api_leituras.py`
 
 * Alvos:
-  * `POST /leituras` (Registro de dados)
-  * `GET /health` (Liveness check)
+  * `POST /leituras` (Registro de dados) — cobre Risco #3 (integridade do payload após persistência)
+  * `GET /health` (Liveness check) — pré-condição para os demais testes
 
-* Cobertura: Status Code (201 Created / 200 OK), Validação de Schema (JSON Schema Draft-07 com CamelCase) e validação de tipos de sensores (`dht22`, `capacitivo`, `ldr`).
+* Cobertura: Status Code (201 Created / 200 OK), Validação de Schema (JSON Schema Draft-07) e validação de tipos de sensores (`dht22`, `capacitivo`, `ldr`).
+
+* **Rastreabilidade direta com a Matriz (Seção 1.3):**
+
+  | Teste | Risco # | UC | Fluxo |
+  | ----- | ------- | -- | ----- |
+  | `test_healthcheck_endpoint` | — | — | Pré-condição |
+  | `test_post_leituras_status_code_and_required_fields` | #3 | UC-01 | FP Passos 7–10 |
+  | `test_post_leituras_schema_completo` | #4 | UC-02 | FP Passos 9–11 |
+  | `test_schema_validation_leitura_valida` | #3 | UC-01 | FP Passos 7–10 |
+  | `test_schema_rejeita_valores_invalidos` (×3) | #3 | UC-01 | FP Passos 7–10 |
+  | `test_schema_requires_all_mandatory_fields` | #3 | UC-01 | FP Passos 7–10 |
+  | `test_integration_contrato_api_bate_com_schema` | #3, #4 | UC-01, UC-02 | FP Passos 7–10 / 9–11 |
 
 Log de Execução (Evidência Automatizada)
 
@@ -253,4 +265,50 @@ docs/test-strategy/contract/test_api_leituras.py::TestContractAPILeituras::test_
 
 ## 1.8 Lições Aprendidas e Pendências para v0.2
 
-*(Espaço reservado para especificações futuras)*.
+> **Versão:** v0.1 — registrado em 10/05/2026 ao encerrar o Marco A1.6.
+> Esta seção documenta o que funcionou, o que custou mais do que o esperado e o que a equipe faria diferente na próxima iteração.
+
+---
+
+### O que funcionou bem
+
+**1. Ancorar riscos em fluxos concretos dos casos de uso**
+Referenciar cada risco a um UC e passo específico (ex: "UC-01 · FP Passo 4") eliminou ambiguidade na hora de definir o que testar. Revisores entenderam o escopo sem precisar ler o código.
+
+**2. Justificar por que *não* usar outros níveis de teste**
+A coluna "Justificativa (rejeita outros níveis)" na Matriz de Riscos (1.3) evitou discussões sobre "por que não fazer teste de sistema?" — a resposta já estava no documento. Isso economizou tempo em revisão de PR.
+
+**3. Contract testing como primeiro teste executável**
+Implementar o teste de contrato HTTP (`test_api_leituras.py`) antes dos testes unitários permitiu validar que a API de referência respondia conforme o esperado, servindo de base de confiança para as demais histórias de teste.
+
+---
+
+### O que custou mais do que o esperado
+
+**4. Divergência entre schema descrito no ADR e schema implementado**
+O ADR-001 foi redigido com um schema-alvo (`temperature_c`, `humidity_pct`) representando a API de produção futura. O teste implementado usa campos diferentes (`device_id`, `sensor`, `valor`), adequados à api-horta-ref v0.1. A diferença não estava documentada e gerou confusão durante a revisão. **Custo estimado: ~2h** de alinhamento de equipe. Corrigido nesta revisão (Seção 1.5).
+
+**5. Restrição de ambiente para testes com `tc netem`**
+O risco #4 (timeout MQTT com delay de 9 s via `tc netem`) exige privilégio `NET_ADMIN` para manipular a interface de rede. Em ambientes Windows/macOS sem WSL2 configurado isso bloqueia a execução local. Esse bloqueador não foi mapeado antes de começar a implementação.
+
+---
+
+### O que faríamos diferente
+
+**6. Criar o arquivo de contrato JSON antes de escrever o ADR**
+Escrever o schema como arquivo versionado (`contracts/esp32-api-v1.json`) antes de redigir o ADR-001 teria mantido o documento e o código sincronizados desde o início. A ordem inversa (texto → código) criou a divergência do item 4.
+
+**7. Mapear restrições de ambiente de CI na abertura da issue**
+Requisitos como `NET_ADMIN` e versão mínima do Docker devem ser levantados como critérios de aceite da issue antes de iniciar, não descobertos durante a implementação.
+
+---
+
+### Pendências para v0.2
+
+| # | Pendência | Responsável sugerido | Critério de conclusão |
+| - | --------- | -------------------- | --------------------- |
+| P-01 | Implementar testes unitários dos riscos #1, #2, #5, #6 e #7 | Victor / Jenifer | Todos os 5 IDs de teste da tabela de rastreabilidade (1.3) passando em CI |
+| P-02 | Implementar testes de integração dos riscos #3 e #4 com contêineres reais | Victor | Pipeline CI verde com InfluxDB + Mosquitto em Docker |
+| P-03 | Migrar schema do contrato para estrutura de produção (`temperature_c`, `humidity_pct`) | Gustavo / Victor | `contracts/esp32-api-v2.json` versionado e testes de contrato atualizados |
+| P-04 | Checklist de testes de sistema manual em hardware real (ESP32 + bomba) | Philipe | Checklist executado e evidência de log antes do release v0.2 |
+| P-05 | Introduzir cenários Gherkin para testes de aceitação do dashboard | Jenifer / Luís Gabriel | Mínimo 3 cenários UC-01/02/03 passando com Cucumber.js |
