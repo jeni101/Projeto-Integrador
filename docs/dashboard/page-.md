@@ -1,6 +1,5 @@
 # Dashboard — Estrutura de Mock
 
-
 ## Visão geral
 
 A camada de mock permite desenvolver e testar o dashboard sem depender da API real ou do hardware ESP32. A troca entre mock e API real exige alteração em **1 arquivo apenas**.
@@ -9,7 +8,7 @@ A camada de mock permite desenvolver e testar o dashboard sem depender da API re
 
 ## Estrutura de arquivos
 
-```
+```.
 src/
 ├── types/
 │   └── sensor.ts          ← contratos TypeScript de todos os sensores
@@ -40,7 +39,7 @@ Nenhum outro arquivo precisa ser modificado.
 ## Sensores cobertos
 
 | Sensor | Campo | Faixa válida | RF |
-|--------|-------|-------------|-----|
+| ------ | ----- | ----------- | --- |
 | DHT22 — temperatura | `temperatura_c` | -40°C a 80°C | RF-003 |
 | DHT22 — umidade do ar | `umidade_ar_pct` | 0–100% | RF-003 |
 | Capacitivo de solo | `umidade_solo_pct` | 0–100% | RF-002 |
@@ -52,10 +51,11 @@ Nenhum outro arquivo precisa ser modificado.
 ## Cenários de mock
 
 ### `normal`
+
 Leituras dentro das faixas nominais. Simula tarde ensolarada com solo adequadamente irrigado.
 
 | Campo | Valor base | Amplitude |
-|-------|-----------|-----------|
+| ----- | ---------- | --------- |
 | `temperatura_c` | 28.5°C | ±0.5 |
 | `umidade_ar_pct` | 65% | ±1.0 |
 | `umidade_solo_pct` | 42% | ±1.5 |
@@ -65,10 +65,11 @@ Leituras dentro das faixas nominais. Simula tarde ensolarada com solo adequadame
 ---
 
 ### `pico`
+
 Valores próximos aos limites máximos dos sensores. Útil para testar alertas e regras de irrigação automática (UC-03). Solo abaixo do threshold de 30% — dispara irrigação.
 
 | Campo | Valor base | Observação |
-|-------|-----------|-----------|
+| ----- | ---------- | ---------- |
 | `temperatura_c` | 79°C | Próximo ao limite RF-003 (80°C) |
 | `umidade_ar_pct` | 97% | Umidade crítica |
 | `umidade_solo_pct` | 12% | Abaixo do threshold UC-03 (30%) |
@@ -78,6 +79,7 @@ Valores próximos aos limites máximos dos sensores. Útil para testar alertas e
 ---
 
 ### `offline`
+
 ESP32 perdeu conexão Wi-Fi. Todos os campos de sensor retornam `null`. O timestamp preserva o momento da última leitura válida (5 minutos atrás). O dashboard deve exibir estado de indisponibilidade sem crashar.
 
 ```ts
@@ -93,6 +95,7 @@ ESP32 perdeu conexão Wi-Fi. Todos os campos de sensor retornam `null`. O timest
 ---
 
 ### `parcial`
+
 LDR com falha de leitura (componente ou conexão com defeito). DHT22 e solo continuam operando. O dashboard deve renderizar `–` no widget de luminosidade, não lançar erro.
 
 ```ts
@@ -112,7 +115,7 @@ LDR com falha de leitura (componente ou conexão com defeito). DHT22 e solo cont
 `historicoMock` em `sensorData.ts` exporta uma sequência de 6 leituras cobrindo ~10 minutos de operação real:
 
 | Offset | Cenário | Evento simulado |
-|--------|---------|----------------|
+| ------ | ------- | --------------- |
 | -10 min | normal | operação normal |
 | -8 min | normal | operação normal |
 | -6 min | normal | operação normal |
@@ -142,7 +145,7 @@ isMockAtivo(): boolean
 ## Contratos de versão
 
 | Versão | Schema | Status |
-|--------|--------|--------|
+| ------ | ------ | ------ |
 | v0.1 | `device_id / sensor / valor / timestamp` | ✅ em uso — adaptador em `sensorService.ts` |
 | v0.2 | campos separados por grandeza física | ⏳ pendente — rastreado em P-03 |
 
@@ -153,7 +156,7 @@ Ao migrar para v0.2, remover a função `adaptarRespostaV1()` de `sensorService.
 ## Rastreabilidade
 
 | Artefato | UC | Risco da matriz |
-|----------|----|----------------|
+| -------- | -- | --------------- |
 | cenário `offline` | UC-01 FE-01-A | #2 (buffer NVS) |
 | cenário `pico` | UC-03 FP P2 | #6 (null < 30 em JS) |
 | cenário `parcial` | UC-01 FP P7–10 | #3 (await WebSocket) |
