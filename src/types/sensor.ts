@@ -1,4 +1,3 @@
-
 /** ID único do dispositivo ESP32 */
 export type DeviceId = string;
 
