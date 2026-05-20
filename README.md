@@ -23,7 +23,7 @@
 | Nome | Papel |
 | ---- | ----- |
 | **Gustavo Vieira** | Banco de Dados |
-| **Jenifer Gomes** | Fullstack |
+| **Jenifer Gomes** | Fullstack|
 | **Luís Gabriel** | Análise e Frontend |
 | **Philipe Gonçalves** | Hardware |
 | **Victor Herédia** | Integração |
