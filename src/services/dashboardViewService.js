@@ -25,13 +25,25 @@ export function gerarLayoutDashboard({
     luz_pct:          pontoSelecionado?.luminosidade_lux ?? telemetriaAtual?.luzSolar ?? 0,
   };
 
-  const estacaoTexto = pontoSelecionado?.estacao    || telemetriaAtual?.estacao    || '---';
-  const ceuTexto     = pontoSelecionado?.condicao_ceu || telemetriaAtual?.condicaoCeu || '---';
+  const estacaoBruta = pontoSelecionado?.estacao    || telemetriaAtual?.estacao    || '---';
+  const ceuBruto     = pontoSelecionado?.condicao_ceu || telemetriaAtual?.condicaoCeu || '---';
 
   const iconeEstacao = { verao: '☀️', inverno: '❄️', outono: '🍂', primavera: '🌸' };
   const iconeCeu = { ensolarado: '☀️', nublado: '☁️', chuvoso: '🌧️' };
+
+  const calcularEstacaoHemisferioSul = () => {
+    const mes = new Date().getMonth();
+    if (mes === 11 || mes <= 1) return 'VERAO';
+    if (mes >= 2 && mes <= 4)   return 'OUTONO';
+    if (mes >= 5 && mes <= 7)   return 'INVERNO';
+    return 'PRIMAVERA';
+  };
+
+  const estacaoTexto = estacaoBruta === '---' ? calcularEstacaoHemisferioSul() : estacaoBruta;
+  const ceuTexto     = ceuBruto === '---' ? 'N/D' : ceuBruto;
+
   const estIcon = iconeEstacao[estacaoTexto?.toLowerCase()] || '🌿';
-  const ceuIcon = iconeCeu[ceuTexto?.toLowerCase()] || '🌤️';
+  const ceuIcon = iconeCeu[ceuTexto?.toLowerCase()] || '☁️';
 
   const legendaFaixas = `
     <div class="flex items-center gap-4 text-[10px] font-mono text-slate-500 dark:text-slate-400">
@@ -89,17 +101,17 @@ export function gerarLayoutDashboard({
         <div class="flex flex-wrap items-center gap-3 px-5 py-3 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800/60 font-mono text-[11px]">
           <div class="flex items-center gap-1.5">
             <span class="text-slate-400 text-[10px] uppercase tracking-wide">Início</span>
-            <input type="text" id="filtro-data-inicio"
+            <input type="datetime-local" id="filtro-data-inicio"
+              min="2026-06-04T16:58"
               value="${configData.inicio}"
-              placeholder="DD/MM/AAAA HH:MM"
-              class="w-36 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 text-slate-800 dark:text-slate-200 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-500">
+              class="w-44 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 text-slate-800 dark:text-slate-200 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-500">
           </div>
           <div class="flex items-center gap-1.5">
             <span class="text-slate-400 text-[10px] uppercase tracking-wide">Fim</span>
-            <input type="text" id="filtro-data-fim"
+            <input type="datetime-local" id="filtro-data-fim"
+              min="2026-06-04T16:58"
               value="${configData.fimControleManual ? configData.fim : ''}"
-              placeholder="Live (tempo real)"
-              class="w-36 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 text-slate-800 dark:text-slate-200 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-500">
+              class="w-44 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 text-slate-800 dark:text-slate-200 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-500">
           </div>
           <button id="btn-aplicar-datas"
             class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold px-3 py-0.5 rounded text-[11px] transition-colors">
@@ -113,9 +125,9 @@ export function gerarLayoutDashboard({
             <span class="text-slate-400 text-[10px] uppercase tracking-wide">Agrupar</span>
             <select id="select-unidade-tempo"
               class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none">
-              <option value="segundo" ${configAgrupamento.unidade === 'segundo' ? 'selected' : ''}>Segundos</option>
               <option value="minuto"  ${configAgrupamento.unidade === 'minuto'  ? 'selected' : ''}>Minutos</option>
               <option value="hora"    ${configAgrupamento.unidade === 'hora'    ? 'selected' : ''}>Horas</option>
+              <option value="dia"     ${configAgrupamento.unidade === 'dia'     ? 'selected' : ''}>Dias</option>
             </select>
           </div>
         </div>
@@ -136,6 +148,18 @@ export function gerarLayoutDashboard({
             </label>`).join('')}
           <span class="ml-auto">${legendaFaixas}</span>
         </div>
+
+        <!-- Dica de interação / ponto selecionado -->
+        ${pontoSelecionado
+          ? `<div class="px-5 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900/40 text-[10px] font-mono text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+               <span>📍</span>
+               <span>Ponto selecionado: <strong>${pontoSelecionado.horario ?? '--:--:--'}</strong> — clique em outro ponto para mudar.</span>
+             </div>`
+          : `<div class="px-5 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900/40 text-[10px] font-mono text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+               <span>ℹ️</span>
+               <span>Clique em um ponto do gráfico para inspecionar aquele momento nos cartões abaixo.</span>
+             </div>`
+        }
 
         <!-- Mini-telemetria inline (ponto selecionado ou último) -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-0 divide-x divide-y divide-slate-100 dark:divide-slate-800/80 border-b border-slate-100 dark:border-slate-800/60 font-mono text-[11px]">
@@ -166,11 +190,11 @@ export function gerarLayoutDashboard({
       <!-- ═══════════════════════════════════════════════
            CARDS DE SENSORES + PAINÉIS LATERAIS
       ════════════════════════════════════════════════ -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          ${renderCardSensor('Umid. Solo', d.umidade_solo_pct, '%', cenarioAtual, d.umidade_solo_pct <= 55 ? 'Solo Seco' : 'Úmido')}
-          ${renderCardSensor('Umid. Ar',   d.umidade_ar_pct,   '%', cenarioAtual, 'Agradável')}
-          ${renderCardSensor('Temperatura',d.temperatura_c,    '°C',cenarioAtual, 'Estável')}
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
+        <div class="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          ${renderCardSensor('Umid. Solo', d.umidade_solo_pct, '%', cenarioAtual, d.umidade_solo_pct <= 55 ? 'Solo Seco' : 'Úmido', { icone: '🌱', corValor: 'text-emerald-600 dark:text-emerald-400', corBarra: 'bg-emerald-500' })}
+          ${renderCardSensor('Umid. Ar',   d.umidade_ar_pct,   '%', cenarioAtual, 'Agradável', { icone: '💧', corValor: 'text-sky-600 dark:text-sky-400', corBarra: 'bg-sky-500' })}
+          ${renderCardSensor('Temperatura',d.temperatura_c,    '°C',cenarioAtual, 'Estável', { icone: '🌡️', corValor: 'text-red-600 dark:text-red-400', corBarra: 'bg-red-500' })}
         </div>
         <div class="grid grid-cols-1 gap-4">
           ${renderSidePanels(d, cenarioAtual, d.status_bomba_manual)}

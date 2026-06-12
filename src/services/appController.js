@@ -52,6 +52,8 @@ function formatarDateParaStringBr(d) {
 function parsearDataHora(valor) {
   if (!valor) return NaN;
   if (typeof valor === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(valor))
+      return new Date(valor + ':00-03:00').getTime();
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(valor))
       return new Date(valor.replace(' ', 'T') + '-03:00').getTime();
     if (/^\d{2}\/\d{2}\/\d{4}/.test(valor))
@@ -109,9 +111,9 @@ function processarAgrupamentoETempo() {
   let filtrados;
 
   if (estadoApp.filtroDataAtivo && estadoApp.configData.inicio) {
-    const ini = converterStringBrParaDate(estadoApp.configData.inicio).getTime();
+    const ini = parsearDataHora(estadoApp.configData.inicio);
     const fim = estadoApp.configData.fimControleManual
-      ? converterStringBrParaDate(estadoApp.configData.fim).getTime()
+      ? parsearDataHora(estadoApp.configData.fim)
       : Date.now();
     filtrados = brutos.filter(p => {
       const ts = parsearDataHora(p.dataHora);
@@ -139,9 +141,10 @@ function processarAgrupamentoETempo() {
 
   filtrados.forEach(p => {
     const dt = new Date(parsearDataHora(p.dataHora));
-    if (unit === 'segundo')     dt.setSeconds(Math.floor(dt.getSeconds() / factor) * factor, 0);
-    else if (unit === 'minuto') dt.setMinutes(Math.floor(dt.getMinutes() / factor) * factor, 0, 0);
-    else                        dt.setHours(Math.floor(dt.getHours() / factor) * factor, 0, 0, 0);
+    if (unit === 'minuto')      dt.setMinutes(Math.floor(dt.getMinutes() / factor) * factor, 0, 0);
+    else if (unit === 'hora')   dt.setHours(Math.floor(dt.getHours() / factor) * factor, 0, 0, 0);
+    else if (unit === 'dia')    dt.setHours(0, 0, 0, 0);
+    else                        dt.setMinutes(Math.floor(dt.getMinutes() / factor) * factor, 0, 0);
     const k = dt.toISOString();
     if (!buckets[k]) buckets[k] = [];
     buckets[k].push(p);
@@ -196,6 +199,11 @@ function sincronizarPontoSelecionado(p) {
 
 function renderizarInterfaceCompleta() {
   if (!appContainer) return;
+
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
 
   appContainer.innerHTML = gerarLayoutDashboard({
     telemetriaAtual:     estadoApp.telemetriaAtual,
@@ -298,10 +306,25 @@ function agendarProximaAtualizacao() {
   }, msAteVirada + 30000);
 }
 
+function vincularToggleTema() {
+  document.addEventListener('click', e => {
+    if (e.target.closest('#btn-toggle-tema')) {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme',
+        document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      if (navContainer) {
+        navContainer.innerHTML = renderNavbar(estadoApp.cenarioAtual);
+      }
+      renderizarInterfaceCompleta();
+    }
+  });
+}
+
 function inicializarOrquestrador() {
   if (navContainer) {
     navContainer.innerHTML = renderNavbar(estadoApp.cenarioAtual);
   }
+  vincularToggleTema();
   processarCicloDadosEUI();
   agendarProximaAtualizacao();
 }

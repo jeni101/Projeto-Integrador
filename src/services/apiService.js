@@ -18,20 +18,23 @@ async function fetchWithTimeout(resource, options = {}) {
 }
 
 function normalizarRegistro(log) {
+  const ca = log.condicoes_ambientais || {};
+  const ss = log.sensores_solo || {};
+  const at = log.atuadores || {};
   return {
     id: log.id,
     dataHora: log.dataHora,
-    umidadeSoloPorcentagem: log.umidadeSoloPorcentagem ?? 0,
-    temperatura: log.temperatura ?? 0,
-    umidadeAr: log.umidadeAr ?? 0,
-    pHSolo: log.pHSolo ?? 7.0,
-    luzSolar: log.luzSolar ?? 0,
-    statusIrrigacao: log.statusIrrigacao === 1 ? "LIGADO" : "DESLIGADO",
-    estaChovendo: log.estaChovendo === 1,
-    vazaoGotejamentoLh: log.statusIrrigacao === 1 ? 2.0 : 0,
-    controleManualAtivo: false,
-    estacao: log.estacao || "---",
-    condicaoCeu: log.condicaoCeu || "---"
+    umidadeSoloPorcentagem: ss.umidadeSoloPorcentagem ?? log.umidadeSoloPorcentagem ?? 0,
+    temperatura: ca.temperaturaCelsius ?? log.temperatura ?? 0,
+    umidadeAr: ca.umidadeArPorcentagem ?? log.umidadeAr ?? 0,
+    pHSolo: ss.pHSolo ?? log.pHSolo ?? 7.0,
+    luzSolar: ca.luminosidadeSolarPorcentagem ?? log.luzSolar ?? 0,
+    statusIrrigacao: at.statusIrrigacao ?? (log.statusIrrigacao === 1 ? "LIGADO" : "DESLIGADO"),
+    estaChovendo: ca.estaChovendo ?? (log.estaChovendo === 1),
+    vazaoGotejamentoLh: at.vazaoGotejamentoLh ?? (log.statusIrrigacao === 1 ? 2.0 : 0),
+    controleManualAtivo: at.controleManualAtivo ?? false,
+    estacao: ca.estacao ?? log.estacao ?? "---",
+    condicaoCeu: ca.condicaoCeu ?? log.condicaoCeu ?? "---"
   };
 }
 
