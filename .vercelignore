@@ -1,0 +1,7 @@
+coverage/
+docs/
+.cursor/
+node_modules/
+**/__tests__/
+**/*.test.js
+.git/

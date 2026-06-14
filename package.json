@@ -2,7 +2,12 @@
   "name": "phorta-dashboard",
   "version": "0.1.0",
   "description": "Dashboard IoT para monitoramento de horta comunitária — PHorta",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "build": "node -e \"console.log('Static site — no build step')\"",
+    "preview": "npx --yes serve . -l 3000",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
