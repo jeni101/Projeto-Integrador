@@ -11,6 +11,8 @@
  *  - Inputs numéricos são verificados quanto a tipo e faixa válida.
  */
 
+import { CULTURAS_VALIDAS } from './mockService.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Passo 2 — Status dinâmico por threshold
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,3 +188,60 @@ export function sanitizarDuracaoIrrigacao(valor, valoresPermitidos = [30, 60, 12
   if (!valoresPermitidos.includes(num)) return 60;
   return num;
 }
+
+/**
+ * Escapa caracteres HTML para mitigar XSS ao renderizar texto dinâmico.
+ * @param {string|null|undefined} texto
+ * @returns {string}
+ */
+export function escapeHtml(texto) {
+  if (texto === null || texto === undefined) return '';
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Sanitiza nome/descrição de canteiro (sem tags HTML).
+ * @param {string|null|undefined} valor
+ * @returns {string}
+ */
+export function sanitizarTextoCanteiro(valor) {
+  if (!valor || typeof valor !== 'string') return '';
+  const trimado = valor.trim().slice(0, 80);
+  return trimado
+    .replace(/[<>"'`/\\]/g, '')
+    .replace(/script/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Valida payload de canteiro para CRUD.
+ * @param {object} dados
+ * @returns {{ valido: boolean, erros: string[], area_m2?: number }}
+ */
+export function validarCanteiro(dados) {
+  const erros = [];
+  const nome = sanitizarTextoCanteiro(dados?.nome);
+  if (!nome || nome.length < 2) erros.push('Nome é obrigatório (mín. 2 caracteres)');
+
+  const area = parseFloat(dados?.area_m2);
+  if (isNaN(area) || area <= 0) erros.push('Área deve ser maior que zero');
+
+  const cultura = dados?.cultura;
+  if (!cultura || !CULTURAS_VALIDAS.includes(cultura)) {
+    erros.push('Cultura inválida');
+  }
+
+  return {
+    valido: erros.length === 0,
+    erros,
+    area_m2: area,
+  };
+}
+
+export { CULTURAS_VALIDAS };

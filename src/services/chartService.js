@@ -201,3 +201,45 @@ export function inicializarGraficoAnalitico(canvasCtx, dadosAgrupados, chartInst
     options: opcoesBase,
   });
 }
+
+export function inicializarGraficoRelatorio(canvasCtx, dados, chartInstance) {
+  if (!dados?.length) return chartInstance;
+
+  const labels = dados.map(d => d.nome);
+  const totals = dados.map(d => d.total);
+
+  const isDark = document.documentElement.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+
+  const config = {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Irrigações',
+        data: totals,
+        backgroundColor: 'rgba(16,185,129,0.7)',
+        borderColor: '#10b981',
+        borderWidth: 1,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { font: { family: 'monospace', size: 10 } } },
+        x: { grid: { display: false }, ticks: { font: { family: 'monospace', size: 10 } } },
+      },
+    },
+  };
+
+  if (chartInstance) {
+    chartInstance.data = config.data;
+    chartInstance.options = config.options;
+    chartInstance.update('none');
+    return chartInstance;
+  }
+
+  return new Chart(canvasCtx, config);
+}
