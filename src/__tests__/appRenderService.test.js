@@ -22,11 +22,12 @@ describe('renderNavbar', () => {
   });
 
   test('contém links de navegação', () => {
-    const html = renderNavbar('normal');
-    expect(html).toContain('Home');
+    const html = renderNavbar('normal', 'principal');
+    expect(html).toContain('Principal');
     expect(html).toContain('Histórico');
-    expect(html).toContain('Crescimento');
-    expect(html).toContain('Sensores');
+    expect(html).toContain('Alertas');
+    expect(html).toContain('Canteiros');
+    expect(html).toContain('#/alertas');
   });
 });
 
@@ -218,7 +219,7 @@ describe('renderCardSensor — Passo 5: badge contextual', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('renderSidePanels — Passo 6: alertas', () => {
   const dadosNormal = { umidade_solo_pct: 70, temperatura_c: 22, irrigacao_ativa: false };
-  const dadosSeco   = { umidade_solo_pct: 40, temperatura_c: 22, irrigacao_ativa: false };
+  const dadosSeco   = { umidade_solo_pct: 28, temperatura_c: 22, irrigacao_ativa: false };
   const dadosQuente = { umidade_solo_pct: 70, temperatura_c: 38, irrigacao_ativa: false };
 
   test('NÃO contém "Reservatório crit." hardcoded', () => {
@@ -231,7 +232,7 @@ describe('renderSidePanels — Passo 6: alertas', () => {
     expect(html).toContain('Temperatura elevada');
   });
 
-  test('alerta de umidade acende quando umidade <= 52', () => {
+  test('alerta de umidade acende quando umidade <= 30', () => {
     const html = renderSidePanels(dadosSeco, 'normal', false);
     expect(html).toContain('bg-yellow-500');
   });

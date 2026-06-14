@@ -1,6 +1,6 @@
 {
   "name": "phorta-dashboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Dashboard IoT para monitoramento de horta comunitária — PHorta",
   "engines": {
     "node": ">=20"
@@ -10,11 +10,14 @@
     "preview": "npx --yes serve . -l 3000",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@babel/preset-env": "^7.24.0",
+    "@playwright/test": "^1.52.0",
     "babel-jest": "^29.7.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
@@ -31,7 +34,12 @@
       "src/services/cardHelpers.js",
       "src/services/appRenderService.js",
       "src/services/apiService.js",
-      "src/services/cacheService.js"
+      "src/services/cacheService.js",
+      "src/services/alertasService.js",
+      "src/services/canteirosService.js",
+      "src/services/routerService.js",
+      "src/services/uiStateService.js",
+      "src/services/observabilityService.js"
     ],
     "coverageThreshold": {
       "global": {

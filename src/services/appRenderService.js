@@ -15,23 +15,35 @@ import { formatarUptime, formatarDuracaoIrrigacao } from './cardHelpers.js';
  *  Passo 9 — Tabela de erros acumulada.
  */
 
-export function renderNavbar(cenarioAtual) {
+export function renderNavbar(cenarioAtual, rotaAtiva = 'principal') {
   const isOffline = cenarioAtual === 'offline';
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
+  const links = [
+    { id: 'principal', label: 'Principal', hash: '#/principal' },
+    { id: 'alertas', label: 'Alertas', hash: '#/alertas' },
+    { id: 'historico', label: 'Histórico', hash: '#/historico' },
+    { id: 'canteiros', label: 'Canteiros', hash: '#/canteiros' },
+  ];
+
+  const navLinks = links.map(l => {
+    const ativo = rotaAtiva === l.id;
+    const cls = ativo
+      ? 'text-slate-900 dark:text-white border-b-2 border-blue-500 pb-1'
+      : 'hover:text-slate-700 dark:hover:text-slate-200 transition-colors';
+    return `<a href="${l.hash}" class="${cls}">${l.label}</a>`;
+  }).join(`
+          <span class="text-slate-300 dark:text-slate-700">•</span>
+          `);
+
   return `
-    <nav class="bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between shadow-lg">
-      <div class="flex items-center gap-8">
+    <nav class="bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 flex items-center justify-between shadow-lg">
+      <div class="flex items-center gap-4 sm:gap-8">
         <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black tracking-tight text-lg select-none">
-          <span>🌱</span> <span>[ Logo ]</span>
+          <span>🌱</span> <span class="hidden sm:inline">PHorta</span>
         </div>
-        <div class="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          <a href="#" class="text-slate-900 dark:text-white border-b-2 border-blue-500 pb-1">Home</a>
-          <span class="text-slate-300 dark:text-slate-700">•</span>
-          <a href="#" class="hover:text-slate-700 dark:hover:text-slate-200 transition-colors">Histórico</a>
-          <span class="text-slate-300 dark:text-slate-700">•</span>
-          <a href="#" class="hover:text-slate-700 dark:hover:text-slate-200 transition-colors">Crescimento</a>
-          <span class="text-slate-300 dark:text-slate-700">•</span>
-          <a href="#" class="hover:text-slate-700 dark:hover:text-slate-200 transition-colors">Sensores</a>
+        <div class="flex items-center gap-3 sm:gap-6 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 overflow-x-auto">
+          ${navLinks}
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -171,8 +183,8 @@ export function renderSidePanels(dados, cenarioAtual, bombaManualAtiva, contexto
         : `<p class="text-slate-500 dark:text-slate-600">[OK] mqtt broker connected</p>
            <p class="text-slate-500 dark:text-slate-600">[OK] wifi RSSI -45dBm</p>`;
 
-  // Passo 6 — Alertas corrigidos (sem "Reservatório" hardcoded; adicionado alerta de temperatura)
-  const alertaUmidSoloBaixo = !isOffline && dados.umidade_solo_pct <= 52;
+  // Alertas — umidade < 30% (assignment A1.8)
+  const alertaUmidSoloBaixo = !isOffline && dados.umidade_solo_pct <= 30;
   const alertaTemperaturaAlta = !isOffline && dados.temperatura_c > 35;
 
   return `
@@ -192,7 +204,7 @@ export function renderSidePanels(dados, cenarioAtual, bombaManualAtiva, contexto
           <span class="h-2 w-2 rounded-full ${isOffline ? 'bg-slate-300 dark:bg-slate-800' : 'bg-emerald-500'}"></span>
           <span>Sistema normal</span>
         </div>
-        <div class="text-[9px] text-blue-500 dark:text-blue-400 hover:underline cursor-pointer pt-1">[Ver todos os alertas]</div>
+        <a href="#/alertas" class="text-[9px] text-blue-500 dark:text-blue-400 hover:underline cursor-pointer pt-1 block">Ver todos os alertas →</a>
       </div>
     </div>
 

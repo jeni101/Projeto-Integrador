@@ -7,6 +7,7 @@ import {
   calcularProgressBarPct,
   calcularDelta,
   formatarTimestamp,
+  escapeHtml,
 } from './cardHelpers.js';
 
 /**
@@ -30,7 +31,23 @@ export function gerarLayoutDashboard({
   telemetriaAtual, telemetriaAnterior = null, pontoSelecionado, cenarioAtual,
   filtrosVisibilidade, configAgrupamento, configData, limitesData,
   timestampInicio = 0, fetchedAt = null, ultimoComando = null, logErros = [], duracaoIrrigacaoSeg = 60,
+  statusCanteiros = [], relatorioIrrigacao = [], uiEstado = 'success', uiErro = null,
 }) {
+
+  if (uiEstado === 'loading') {
+    return `<div class="flex flex-col items-center justify-center py-20 gap-4" data-ui-state="loading">
+      <div class="h-10 w-10 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></div>
+      <p class="text-sm font-mono text-slate-500">Carregando dashboard...</p>
+    </div>`;
+  }
+
+  if (uiEstado === 'error') {
+    return `<div class="flex flex-col items-center justify-center py-16 gap-4 text-center" data-ui-state="error">
+      <span class="text-4xl">⚠️</span>
+      <p class="text-sm font-mono text-red-500">${escapeHtml(uiErro || 'Erro ao carregar dados')}</p>
+      <button id="btn-retry-principal" class="bg-blue-600 text-white font-bold px-4 py-2 rounded text-sm">Tentar novamente</button>
+    </div>`;
+  }
 
   const baseCenario = (cenarioAtual || 'offline').replace(/-cached$/, '');
   const isCached = cenarioAtual.endsWith('-cached');
@@ -134,6 +151,49 @@ export function gerarLayoutDashboard({
       ? '🌧 Chuva detectada'
       : null;
 
+  const canteirosHtml = statusCanteiros.length ? `
+    <div class="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-4">
+      <h2 class="text-[11px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-300 font-mono mb-3">
+        Status dos Canteiros
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        ${statusCanteiros.map(c => `
+          <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-3 font-mono text-[11px]">
+            <div class="font-bold text-slate-800 dark:text-white truncate">${escapeHtml(c.nome)}</div>
+            <div class="text-slate-500 mt-1">${escapeHtml(c.cultura)}</div>
+            <div class="mt-2 flex flex-wrap gap-2 text-[10px]">
+              ${c.semMonitoramento
+                ? '<span class="text-slate-400">● Sem monitoramento</span>'
+                : c.offline
+                  ? '<span class="text-red-500">● Offline</span>'
+                  : `<span class="text-emerald-500">● Online</span>
+                     <span>🌡 ${c.temperatura_c ?? '—'}°C</span>
+                     <span>💧 ${c.umidade_solo_pct ?? '—'}%</span>`}
+              ${c.fonteApi ? '<span class="text-blue-500">📡 API</span>' : ''}
+              ${c.alertaAtivo ? '<span class="text-amber-500 font-bold">⚠ Alerta</span>' : ''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const relatorioHtml = relatorioIrrigacao.length ? `
+    <div class="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-4">
+      <h2 class="text-[11px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-300 font-mono mb-3">
+        Irrigações por Canteiro (7 dias)
+      </h2>
+      <div style="height: 220px;" class="relative">
+        <canvas id="relatorioChart"></canvas>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 font-mono text-[10px] text-slate-500">
+        ${relatorioIrrigacao.map(r => `
+          <div class="text-center p-2 bg-slate-50 dark:bg-slate-950 rounded">
+            <div class="font-bold text-slate-700 dark:text-slate-300">${escapeHtml(r.nome)}</div>
+            <div>${r.total} irrigações</div>
+            <div>${r.volume.toFixed(1)} L</div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
   return `
     <!-- Cabeçalho de status -->
     <div class="w-full font-mono text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center mb-3 px-1">
@@ -142,6 +202,10 @@ export function gerarLayoutDashboard({
     </div>
 
     <div class="w-full space-y-5">
+
+      ${canteirosHtml}
+
+      ${relatorioHtml}
 
       <!-- ═══════════════════════════════════════════════
            PAINEL PRINCIPAL — GRÁFICO

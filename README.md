@@ -153,23 +153,51 @@ A cada nova leitura, o motor de regras avalia as condições ativas. Se satisfei
 
 ## Como Rodar
 
-> **Em construção.** As instruções de configuração serão adicionadas conforme o ambiente de desenvolvimento for finalizado.
+### Dashboard web (A1.8)
 
-Pré-requisitos esperados:
+```bash
+git clone https://github.com/Gustavo-Vieira-Unasp/Projeto-Integrador.git
+cd Projeto-Integrador
+npm install
+npm run preview          # http://localhost:3000/#/principal
+```
+
+**Telas:** `#/principal` · `#/alertas` · `#/historico` · `#/canteiros`
+
+**Modelo de canteiros:**
+
+- **Canteiro Alface (id A)** — único com telemetria real da API (Azure/Render)
+- **Demais canteiros** — cadastrados pelo usuário em `#/canteiros`; aparecem como "sem sensor" / "Sem monitoramento" (sem leituras até integração futura)
+- **Mock de edge case** (`?cenario=...`) — aplica-se apenas ao fallback do canteiro A quando a API falha
+
+**Testes:**
+
+```bash
+npm test                 # unitários (Jest)
+npm run test:coverage    # cobertura
+npm run test:e2e:install # primeira vez — browser Playwright
+npm run test:e2e         # E2E fluxo crítico
+```
+
+**Cenários de edge case (mock):** `?cenario=offline|parcial|suspeito` ou `localStorage.setItem('phorta-cenario-forcado','offline')`
+
+### Stack completa (ESP32 + backend)
+
+Pré-requisitos para integração hardware:
 
 - ESP32 com firmware v1.0+ gravado
 - Broker MQTT acessível na porta 1883
-- Servidor backend na porta 8080
+- Servidor backend (Azure/Render — URLs em `src/services/apiService.js`)
 - Banco de dados InfluxDB ou PostgreSQL configurado
 
 ---
 
 ## Processo
 
-Acompanhe o processo de desenvolvimento clicando [aqui](process.md).
+Acompanhe o processo de desenvolvimento clicando [aqui](docs/requirements/process.md).
 
 ---
 
 ## Métricas
 
-Veja as métricas usadas no desenvolvimento clicando [aqui](metrics.md).
+Veja as métricas usadas no desenvolvimento clicando [aqui](docs/requirements/metrics.md).

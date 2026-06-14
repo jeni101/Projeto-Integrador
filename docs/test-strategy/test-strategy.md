@@ -312,3 +312,27 @@ Requisitos como `NET_ADMIN` e versão mínima do Docker devem ser levantados com
 | P-03 | Migrar schema do contrato para estrutura de produção (`temperature_c`, `humidity_pct`) | Gustavo / Victor | `contracts/esp32-api-v2.json` versionado e testes de contrato atualizados |
 | P-04 | Checklist de testes de sistema manual em hardware real (ESP32 + bomba) | Philipe | Checklist executado e evidência de log antes do release v0.2 |
 | P-05 | Introduzir cenários Gherkin para testes de aceitação do dashboard | Jenifer / Luís Gabriel | Mínimo 3 cenários UC-01/02/03 passando com Cucumber.js |
+
+---
+
+## 1.9 Matriz de Riscos — Dashboard A1.8 (diff v0.1 → v0.2)
+
+Riscos frontend adicionados na entrega A1.8, ancorados na mesma estrutura da §1.3:
+
+| # | UC · Fluxo | Risco concreto | Nível | ID do teste |
+| - | ---------- | -------------- | ----- | ----------- |
+| 8 | UC-01 · Alertas dashboard | XSS via nome de canteiro renderizado sem escape | Unitário | `unit.canteiros.xss-sanitize` |
+| 9 | UC-01 · Fetch layer | Falha silenciosa quando API e cache indisponíveis — tela em branco | Unitário | `unit.api.failover-offline` |
+| 10 | UC-02 · Histórico | Paginação retorna página vazia sem estado `empty` — operador assume bug | Unitário | `unit.historico.empty-page` |
+
+### Rastreabilidade dashboard A1.8
+
+| ID do teste | Tela | Arquivo de teste | Risco # |
+| ----------- | ---- | ---------------- | ------- |
+| `unit.alertas.filter-canteiro` | Alertas | `alertasService.test.js` | #8 |
+| `unit.canteiros.crud-validate` | Canteiros | `canteirosService.test.js` | #8 |
+| `unit.principal.alert-threshold-30` | Principal | `principalView.test.js` | #9 |
+| `unit.historico.csv-export` | Histórico | `principalView.test.js` | #10 |
+| `e2e.dashboard.critical-flow` | Fluxo E2E | `e2e/dashboard-flow.spec.js` | #9, #10 |
+
+Evidências de execução: `docs/dashboard/evidencias/test-unit-a18.log`, `test-e2e-a18.log`

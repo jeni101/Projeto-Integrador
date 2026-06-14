@@ -9,6 +9,9 @@ import {
   formatarDuracaoIrrigacao,
   sanitizarEntradaData,
   sanitizarDuracaoIrrigacao,
+  escapeHtml,
+  sanitizarTextoCanteiro,
+  validarCanteiro,
 } from '../services/cardHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,5 +327,32 @@ describe('sanitizarDuracaoIrrigacao', () => {
   test('aceita lista customizada de valores permitidos', () => {
     expect(sanitizarDuracaoIrrigacao(10, [10, 20, 30])).toBe(10);
     expect(sanitizarDuracaoIrrigacao(15, [10, 20, 30])).toBe(60);
+  });
+});
+
+describe('escapeHtml', () => {
+  test('escapa tags script', () => {
+    expect(escapeHtml('<script>alert(1)</script>')).not.toContain('<script>');
+    expect(escapeHtml('<script>alert(1)</script>')).toContain('&lt;');
+  });
+});
+
+describe('sanitizarTextoCanteiro', () => {
+  test('remove caracteres perigosos', () => {
+    expect(sanitizarTextoCanteiro('  Horta <b>A</b>  ')).not.toContain('<');
+    expect(sanitizarTextoCanteiro('<script>x</script>')).not.toMatch(/script/i);
+  });
+});
+
+describe('validarCanteiro', () => {
+  test('rejeita área zero', () => {
+    const r = validarCanteiro({ nome: 'Test', cultura: 'Alface', area_m2: 0 });
+    expect(r.valido).toBe(false);
+  });
+
+  test('aceita canteiro válido', () => {
+    const r = validarCanteiro({ nome: 'Horta A', cultura: 'Tomate', area_m2: 4.5 });
+    expect(r.valido).toBe(true);
+    expect(r.area_m2).toBe(4.5);
   });
 });
