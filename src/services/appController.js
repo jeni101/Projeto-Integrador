@@ -2,6 +2,12 @@ import { renderNavbar } from './appRenderService.js';
 import { gerarLayoutDashboard } from './dashboardViewService.js';
 import { inicializarGraficoAnalitico } from './chartService.js';
 import { buscarDadosDispositivo } from './apiService.js';
+import {
+  carregarCacheSnapshot,
+  carregarSessaoLocal,
+  salvarSessaoLocal,
+  toCachedResponse,
+} from './cacheService.js';
 import { obterTelemetriaMockada, obterHistoricoMockado } from './mockService.js';
 import { sanitizarEntradaData, sanitizarDuracaoIrrigacao } from './cardHelpers.js';
 
@@ -30,6 +36,7 @@ let estadoApp = {
   ultimoComando: null,                // Passo 7 — último comando enviado
   logErros: [],                       // Passo 9 — log acumulado (máx. 20 entradas)
   duracaoIrrigacaoSeg: 60,            // Passo 8 — duração de irrigação configurável
+  fetchedAt: null,
 };
 
 let chartInstance = null;
@@ -48,6 +55,45 @@ function adicionarLogErro(nivel, mensagem) {
   const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false });
   estadoApp.logErros.unshift({ nivel, mensagem, timestamp });
   if (estadoApp.logErros.length > 20) estadoApp.logErros.pop();
+  persistirSessaoLocal();
+}
+
+function persistirSessaoLocal() {
+  salvarSessaoLocal({
+    timestampInicio: estadoApp.timestampInicio,
+    logErros: estadoApp.logErros,
+    filtrosVisibilidade: estadoApp.filtrosVisibilidade,
+    configAgrupamento: estadoApp.configAgrupamento,
+    filtroDataAtivo: estadoApp.filtroDataAtivo,
+    configData: estadoApp.configData,
+    duracaoIrrigacaoSeg: estadoApp.duracaoIrrigacaoSeg,
+    ultimoComando: estadoApp.ultimoComando,
+  });
+}
+
+function restaurarSessaoLocal() {
+  const sessao = carregarSessaoLocal();
+  if (!sessao) return;
+  if (sessao.timestampInicio) estadoApp.timestampInicio = sessao.timestampInicio;
+  if (Array.isArray(sessao.logErros)) estadoApp.logErros = sessao.logErros;
+  if (sessao.filtrosVisibilidade) estadoApp.filtrosVisibilidade = sessao.filtrosVisibilidade;
+  if (sessao.configAgrupamento) estadoApp.configAgrupamento = sessao.configAgrupamento;
+  if (typeof sessao.filtroDataAtivo === 'boolean') estadoApp.filtroDataAtivo = sessao.filtroDataAtivo;
+  if (sessao.configData) estadoApp.configData = { ...estadoApp.configData, ...sessao.configData };
+  if (sessao.duracaoIrrigacaoSeg) estadoApp.duracaoIrrigacaoSeg = sessao.duracaoIrrigacaoSeg;
+  if (sessao.ultimoComando) estadoApp.ultimoComando = sessao.ultimoComando;
+}
+
+function aplicarPayloadNoEstado(payload) {
+  estadoApp.telemetriaAnterior = estadoApp.telemetriaAtual;
+  estadoApp.cenarioAtual = payload.cenario || 'offline';
+  estadoApp.telemetriaAtual = payload.telemetria;
+  estadoApp.dadosGraficoTimelineBrutos = payload.historico || [];
+  estadoApp.fetchedAt = payload.fetchedAt ?? null;
+}
+
+function comandoBloqueado() {
+  return estadoApp.cenarioAtual === 'offline' || estadoApp.cenarioAtual.endsWith('-cached');
 }
 
 const navContainer  = document.getElementById('nav-container');
@@ -91,30 +137,33 @@ async function atualizarEstadoDados() {
   try {
     const payload = await buscarDadosDispositivo();
 
-    // Passo 4 — salvar leitura anterior antes de sobrescrever
-    estadoApp.telemetriaAnterior    = estadoApp.telemetriaAtual;
-
-    estadoApp.cenarioAtual          = payload.cenario || 'offline';
-    estadoApp.telemetriaAtual       = payload.telemetria;
-    estadoApp.dadosGraficoTimelineBrutos = payload.historico;
+    aplicarPayloadNoEstado(payload);
 
     if (!estadoApp.dadosGraficoTimelineBrutos?.length) {
       adicionarLogErro('WARN', 'Histórico vazio — usando mock local');
       estadoApp.dadosGraficoTimelineBrutos = obterHistoricoMockado();
       estadoApp.cenarioAtual = 'offline';
+      estadoApp.fetchedAt = null;
     }
     if (!estadoApp.telemetriaAtual) {
       estadoApp.telemetriaAtual = obterTelemetriaMockada();
     }
 
-    adicionarLogErro('OK', `${estadoApp.dadosGraficoTimelineBrutos.length} registros | ${estadoApp.cenarioAtual}`);
+    const origem = payload.fromCache ? 'cache' : 'rede';
+    adicionarLogErro('OK', `${estadoApp.dadosGraficoTimelineBrutos.length} registros | ${estadoApp.cenarioAtual} (${origem})`);
 
   } catch (err) {
-    // Passo 9 — registrar erro no log acumulado
     adicionarLogErro('ERR', `Falha na API: ${err.message}`);
-    estadoApp.cenarioAtual               = 'offline';
-    estadoApp.dadosGraficoTimelineBrutos = obterHistoricoMockado();
-    estadoApp.telemetriaAtual            = obterTelemetriaMockada();
+    const cached = await carregarCacheSnapshot();
+    if (cached) {
+      aplicarPayloadNoEstado(toCachedResponse(cached));
+      adicionarLogErro('WARN', 'Recuperado do cache local após erro');
+    } else {
+      estadoApp.cenarioAtual = 'offline';
+      estadoApp.fetchedAt = null;
+      estadoApp.dadosGraficoTimelineBrutos = obterHistoricoMockado();
+      estadoApp.telemetriaAtual = obterTelemetriaMockada();
+    }
   } finally {
     estaCarregando = false;
   }
@@ -239,6 +288,7 @@ function renderizarInterfaceCompleta() {
     configData:           estadoApp.configData,
     limitesData:          estadoApp.limitesData,
     timestampInicio:      estadoApp.timestampInicio,
+    fetchedAt:              estadoApp.fetchedAt,
     ultimoComando:        estadoApp.ultimoComando,
     logErros:             estadoApp.logErros,
     duracaoIrrigacaoSeg:  estadoApp.duracaoIrrigacaoSeg,
@@ -269,6 +319,7 @@ function vincularEventosDashboard() {
     chk.addEventListener('change', e => {
       const id = e.target.getAttribute('data-series');
       estadoApp.filtrosVisibilidade[id] = e.target.checked;
+      persistirSessaoLocal();
       if (chartInstance) {
         const ds = chartInstance.data.datasets.find(d => d.id === id);
         if (ds) { ds.hidden = !e.target.checked; chartInstance.update(); }
@@ -279,12 +330,14 @@ function vincularEventosDashboard() {
   // Agrupamento temporal
   document.getElementById('select-unidade-tempo')?.addEventListener('change', e => {
     estadoApp.configAgrupamento.unidade = e.target.value;
+    persistirSessaoLocal();
     processarAgrupamentoETempo();
     renderizarInterfaceCompleta();
   });
 
   document.getElementById('input-fator-tempo')?.addEventListener('change', e => {
     estadoApp.configAgrupamento.fator = Math.max(1, parseInt(e.target.value) || 1);
+    persistirSessaoLocal();
     processarAgrupamentoETempo();
     renderizarInterfaceCompleta();
   });
@@ -298,6 +351,7 @@ function vincularEventosDashboard() {
     estadoApp.configData.fim              = fim || '';
     estadoApp.configData.fimControleManual = !!(fim && fim !== '');
     estadoApp.filtroDataAtivo             = true;
+    persistirSessaoLocal();
     processarAgrupamentoETempo();
     renderizarInterfaceCompleta();
   });
@@ -307,6 +361,7 @@ function vincularEventosDashboard() {
     estadoApp.configData.inicio            = '';
     estadoApp.configData.fim               = '';
     estadoApp.configData.fimControleManual = false;
+    persistirSessaoLocal();
     processarAgrupamentoETempo();
     renderizarInterfaceCompleta();
   });
@@ -314,11 +369,12 @@ function vincularEventosDashboard() {
   // Passo 8 — Duração de irrigação configurável com sanitização (ISO 27002 8.2)
   document.getElementById('select-duracao-irrigacao')?.addEventListener('change', e => {
     estadoApp.duracaoIrrigacaoSeg = sanitizarDuracaoIrrigacao(e.target.value);
+    persistirSessaoLocal();
   });
 
   // Passo 7 — Botão de irrigação: registrar último comando
   document.getElementById('btn-toggle-bomba')?.addEventListener('click', () => {
-    if (estadoApp.cenarioAtual === 'offline') return;
+    if (comandoBloqueado()) return;
     const bombaAtiva = estadoApp.telemetriaAtual?.statusIrrigacao === 'LIGADO';
     const cmd = bombaAtiva
       ? 'Parar irrigação'
@@ -367,12 +423,28 @@ function vincularToggleTema() {
   });
 }
 
-function inicializarOrquestrador() {
+async function inicializarOrquestrador() {
+  restaurarSessaoLocal();
+
   if (navContainer) {
     navContainer.innerHTML = renderNavbar(estadoApp.cenarioAtual);
   }
+
+  const cached = await carregarCacheSnapshot();
+  if (cached) {
+    aplicarPayloadNoEstado(toCachedResponse(cached));
+    processarAgrupamentoETempo();
+    if (estadoApp.telemetriaAtual) {
+      sincronizarPontoSelecionado(estadoApp.telemetriaAtual);
+    }
+    renderizarInterfaceCompleta();
+    if (navContainer) {
+      navContainer.innerHTML = renderNavbar(estadoApp.cenarioAtual);
+    }
+  }
+
   vincularToggleTema();
-  processarCicloDadosEUI();
+  await processarCicloDadosEUI();
   agendarProximaAtualizacao();
 }
 

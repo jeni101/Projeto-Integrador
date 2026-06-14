@@ -4,6 +4,23 @@
  */
 import { normalizarRegistro, buscarDadosDispositivo } from '../services/apiService.js';
 
+jest.mock('../services/cacheService.js', () => ({
+  carregarCacheSnapshot: jest.fn(),
+  salvarCacheSnapshot: jest.fn().mockResolvedValue(undefined),
+  toCachedResponse: jest.fn((snapshot) => ({
+    telemetria: snapshot.telemetria,
+    historico: snapshot.historico,
+    cenario: `${(snapshot.cenario || 'normal').replace(/-cached$/, '')}-cached`,
+    fetchedAt: snapshot.fetchedAt,
+    fromCache: true,
+  })),
+}));
+
+import {
+  carregarCacheSnapshot,
+  salvarCacheSnapshot,
+} from '../services/cacheService.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de mock
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +53,11 @@ function criarFetchMock(dados, ok = true, status = 200) {
 // buscarDadosDispositivo — testes com mock de fetch
 // ─────────────────────────────────────────────────────────────────────────────
 describe('buscarDadosDispositivo', () => {
+  beforeEach(() => {
+    carregarCacheSnapshot.mockResolvedValue(null);
+    salvarCacheSnapshot.mockClear();
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -76,6 +98,35 @@ describe('buscarDadosDispositivo', () => {
     expect(resultado.cenario).toBe('offline');
     expect(resultado.historico).toHaveLength(0);
     expect(resultado.telemetria).toBeNull();
+  });
+
+  test('retorna cache quando APIs falham mas snapshot existe', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Sem conexão'));
+    carregarCacheSnapshot.mockResolvedValue({
+      telemetria: mockRegistro,
+      historico: [mockRegistro],
+      cenario: 'normal',
+      fetchedAt: Date.now(),
+    });
+
+    const resultado = await buscarDadosDispositivo();
+
+    expect(resultado.cenario).toBe('normal-cached');
+    expect(resultado.fromCache).toBe(true);
+    expect(resultado.historico).toHaveLength(1);
+  });
+
+  test('salva snapshot após fetch bem-sucedido', async () => {
+    global.fetch = criarFetchMock([mockRegistro]);
+
+    await buscarDadosDispositivo();
+
+    expect(salvarCacheSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cenario: 'normal',
+        historico: expect.any(Array),
+      })
+    );
   });
 
   test('retorna offline quando API retorna HTTP 500', async () => {

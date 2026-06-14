@@ -30,7 +30,8 @@
     "collectCoverageFrom": [
       "src/services/cardHelpers.js",
       "src/services/appRenderService.js",
-      "src/services/apiService.js"
+      "src/services/apiService.js",
+      "src/services/cacheService.js"
     ],
     "coverageThreshold": {
       "global": {

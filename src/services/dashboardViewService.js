@@ -1,3 +1,4 @@
+import { formatarIdadeCache } from './cacheService.js';
 import { renderCardSensor, renderSidePanels } from './appRenderService.js';
 import {
   calcularStatusUmidadeSolo,
@@ -20,7 +21,7 @@ import {
  * @param {object}      params.configAgrupamento    - Agrupamento temporal.
  * @param {object}      params.configData           - Filtros de data.
  * @param {object}      params.limitesData          - Limites do histórico carregado.
- * @param {number}      params.timestampInicio      - ms epoch do início da sessão (Passo 7).
+ * @param {number}      params.fetchedAt            - ms epoch da última atualização (cache ou API).
  * @param {string|null} params.ultimoComando        - Último comando enviado (Passo 7).
  * @param {Array}       params.logErros             - Log acumulado de eventos (Passo 9).
  * @param {number}      params.duracaoIrrigacaoSeg  - Duração configurável (Passo 8).
@@ -28,14 +29,21 @@ import {
 export function gerarLayoutDashboard({
   telemetriaAtual, telemetriaAnterior = null, pontoSelecionado, cenarioAtual,
   filtrosVisibilidade, configAgrupamento, configData, limitesData,
-  timestampInicio = 0, ultimoComando = null, logErros = [], duracaoIrrigacaoSeg = 60,
+  timestampInicio = 0, fetchedAt = null, ultimoComando = null, logErros = [], duracaoIrrigacaoSeg = 60,
 }) {
 
-  const statusBadge = cenarioAtual === 'offline'
+  const baseCenario = (cenarioAtual || 'offline').replace(/-cached$/, '');
+  const isCached = cenarioAtual.endsWith('-cached');
+
+  const statusBadge = baseCenario === 'offline'
     ? `<span class="text-amber-400 font-bold tracking-wide">◉ SIMULAÇÃO</span>`
-    : cenarioAtual === 'render-live'
+    : baseCenario === 'render-live'
       ? `<span class="text-cyan-400 font-bold tracking-wide">● RENDER</span>`
       : `<span class="text-emerald-400 font-bold tracking-wide">● AZURE</span>`;
+
+  const cacheHint = isCached && fetchedAt
+    ? `<span class="text-slate-400 font-normal ml-1">· cache ${formatarIdadeCache(fetchedAt)}</span>`
+    : '';
 
   const obterDado = (ponto, telemetria, campoSnake, campoCamel) =>
     ponto?.[campoSnake] ?? telemetria?.[campoCamel] ?? telemetria?.[campoSnake] ?? 0;
@@ -130,7 +138,7 @@ export function gerarLayoutDashboard({
     <!-- Cabeçalho de status -->
     <div class="w-full font-mono text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center mb-3 px-1">
       <span>Telemetry Router: <span class="text-slate-700 dark:text-slate-200 font-bold">esp32-horta-01</span></span>
-      <span>API: ${statusBadge}</span>
+      <span>API: ${statusBadge}${cacheHint}</span>
     </div>
 
     <div class="w-full space-y-5">
@@ -146,7 +154,7 @@ export function gerarLayoutDashboard({
             <h2 class="text-[11px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-300 font-mono">
               Centro Analítico · Dados Históricos
             </h2>
-            <p class="text-[9px] font-mono text-slate-400 mt-0.5">Failover Azure → Render → Mock offline</p>
+            <p class="text-[9px] font-mono text-slate-400 mt-0.5">Failover Azure → Render → Cache local</p>
           </div>
           <div class="flex items-center gap-2 font-mono text-[10px]">
             <span class="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-md font-bold">

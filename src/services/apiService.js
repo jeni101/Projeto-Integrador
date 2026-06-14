@@ -1,7 +1,13 @@
+import {
+  carregarCacheSnapshot,
+  salvarCacheSnapshot,
+  toCachedResponse,
+} from './cacheService.js';
+
 const PRIMARY_API = 'https://horta-api-htggarb3eagagpgm.brazilsouth-01.azurewebsites.net';
 const FALLBACK_API = 'https://server-horta.onrender.com';
 
-const JANELA_HISTORICO_MINUTOS = 10080;
+export const JANELA_HISTORICO_MINUTOS = 10080;
 
 async function fetchWithTimeout(resource, options = {}) {
   const { timeout = 8000 } = options;
@@ -67,20 +73,14 @@ async function obterHistoricoCompleto(baseUrl) {
   return lista.map(normalizarRegistro);
 }
 
-export async function buscarDadosDispositivo() {
-  const payloadSeguro = {
-    telemetria: null,
-    historico: [],
-    cenario: 'offline'
-  };
-
+async function tentarBuscarApis() {
   try {
     const historico = await obterHistoricoCompleto(PRIMARY_API);
     const ultimaLeitura = historico[historico.length - 1];
     return {
       telemetria: ultimaLeitura,
       historico,
-      cenario: 'normal'
+      cenario: 'normal',
     };
   } catch (err) {
     console.warn(`⚠️ Azure falhou: ${err.message}. Tentando Render...`);
@@ -92,11 +92,39 @@ export async function buscarDadosDispositivo() {
     return {
       telemetria: ultimaLeitura,
       historico,
-      cenario: 'render-live'
+      cenario: 'render-live',
     };
   } catch (err) {
-    console.error(`💥 Render também falhou: ${err.message}. Ativando modo offline.`);
+    console.error(`💥 Render também falhou: ${err.message}.`);
   }
 
-  return payloadSeguro;
+  return null;
+}
+
+export async function buscarDadosDispositivo(options = {}) {
+  const { preferCache = false } = options;
+  const cached = await carregarCacheSnapshot();
+
+  if (preferCache && cached) {
+    return toCachedResponse(cached);
+  }
+
+  const fresh = await tentarBuscarApis();
+  if (fresh) {
+    const fetchedAt = Date.now();
+    await salvarCacheSnapshot({ ...fresh, fetchedAt });
+    return { ...fresh, fetchedAt, fromCache: false };
+  }
+
+  if (cached) {
+    console.warn('APIs indisponíveis — usando último snapshot em cache');
+    return toCachedResponse(cached);
+  }
+
+  return {
+    telemetria: null,
+    historico: [],
+    cenario: 'offline',
+    fromCache: false,
+  };
 }

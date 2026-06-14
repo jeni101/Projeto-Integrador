@@ -142,7 +142,9 @@ export function renderCardSensor(titulo, valor, unidade, estadoCard, descricaoSt
  */
 export function renderSidePanels(dados, cenarioAtual, bombaManualAtiva, contexto = {}) {
   const isOffline = cenarioAtual === 'offline';
-  const modoBombaAtivo = isOffline ? false : (dados.irrigacao_ativa || bombaManualAtiva);
+  const isReadOnly = cenarioAtual.endsWith('-cached');
+  const controlesDesabilitados = isOffline || isReadOnly;
+  const modoBombaAtivo = controlesDesabilitados ? false : (dados.irrigacao_ativa || bombaManualAtiva);
 
   // Passo 7 — Uptime calculado
   const uptimeTexto = isOffline ? '0d 0h' : formatarUptime(contexto.timestampInicio ?? 0);
@@ -233,13 +235,13 @@ export function renderSidePanels(dados, cenarioAtual, bombaManualAtiva, contexto
         <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">💧 Ação Rápida</div>
         <div class="flex items-center gap-2 mt-1">
           <span class="text-[10px] text-slate-500">Duração:</span>
-          <select id="select-duracao-irrigacao" ${isOffline ? 'disabled' : ''}
+          <select id="select-duracao-irrigacao" ${controlesDesabilitados ? 'disabled' : ''}
             class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded px-1 py-0.5 text-[10px] font-mono focus:outline-none disabled:opacity-30">
             ${opcoesHtml}
           </select>
         </div>
       </div>
-      <button id="btn-toggle-bomba" ${isOffline ? 'disabled' : ''} class="w-full py-1.5 rounded font-mono text-[11px] font-bold uppercase tracking-wider transition-all border ${
+      <button id="btn-toggle-bomba" ${controlesDesabilitados ? 'disabled' : ''} class="w-full py-1.5 rounded font-mono text-[11px] font-bold uppercase tracking-wider transition-all border ${
         modoBombaAtivo
           ? 'bg-red-50 dark:bg-red-950 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400'
           : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-emerald-600 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-900 disabled:opacity-20'
