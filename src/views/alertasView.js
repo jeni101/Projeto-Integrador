@@ -20,32 +20,40 @@ export function renderAlertasView({ estado, alertas = [], filtros = {}, erro = n
   ];
 
   const filtrosHtml = `
-    <div class="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-wrap gap-3 font-mono text-[11px]">
-      <label class="flex flex-col gap-1">
-        <span class="text-slate-400 uppercase text-[9px]">Canteiro</span>
-        <select id="filtro-alerta-canteiro" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
-          <option value="todos" ${filtros.canteiroId === 'todos' ? 'selected' : ''}>Todos</option>
-          ${canteiros.map(c => {
-            const label = c.fonteApi ? escapeHtml(c.nome) : `${escapeHtml(c.nome)} (sem sensor)`;
-            return `<option value="${c.id}" ${filtros.canteiroId === c.id ? 'selected' : ''}>${label}</option>`;
-          }).join('')}
-        </select>
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-slate-400 uppercase text-[9px]">Tipo</span>
-        <select id="filtro-alerta-tipo" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
-          ${tipos.map(t => `<option value="${t}" ${filtros.tipo === t ? 'selected' : ''}>${t === 'todos' ? 'Todos' : formatarTipoAlerta(t)}</option>`).join('')}
-        </select>
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-slate-400 uppercase text-[9px]">Período</span>
-        <select id="filtro-alerta-periodo" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
-          ${periodos.map(p => `<option value="${p.v}" ${String(filtros.periodoDias) === String(p.v) ? 'selected' : ''}>${p.l}</option>`).join('')}
-        </select>
-      </label>
-      <button id="btn-aplicar-filtros-alertas" class="self-end bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded">Filtrar</button>
-    </div>`;
-
+  <div class="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-wrap gap-3 font-mono text-[11px]">
+    <label class="flex flex-col gap-1">
+      <span class="text-slate-400 uppercase text-[9px]">Canteiro</span>
+      <select id="filtro-alerta-canteiro" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
+        <option value="todos" ${filtros.canteiroId === 'todos' ? 'selected' : ''}>Todos</option>
+        ${canteiros.map(c => {
+          const label = c.fonteApi ? escapeHtml(c.nome) : `${escapeHtml(c.nome)} (sem sensor)`;
+          return `<option value="${c.id}" ${filtros.canteiroId === c.id ? 'selected' : ''}>${label}</option>`;
+        }).join('')}
+      </select>
+    </label>
+    <label class="flex flex-col gap-1">
+      <span class="text-slate-400 uppercase text-[9px]">Tipo</span>
+      <select id="filtro-alerta-tipo" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
+        ${tipos.map(t => `<option value="${t}" ${filtros.tipo === t ? 'selected' : ''}>${t === 'todos' ? 'Todos' : formatarTipoAlerta(t)}</option>`).join('')}
+      </select>
+    </label>
+    <label class="flex flex-col gap-1">
+      <span class="text-slate-400 uppercase text-[9px]">Período</span>
+      <select id="filtro-alerta-periodo" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
+        ${periodos.map(p => `<option value="${p.v}" ${String(filtros.periodoDias) === String(p.v) ? 'selected' : ''}>${p.l}</option>`).join('')}
+      </select>
+    </label>
+    <label class="flex flex-col gap-1">
+      <span class="text-slate-400 uppercase text-[9px]">Severidade</span>
+      <select id="filtro-alerta-severidade" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
+        <option value="todos">Todos</option>
+        <option value="alta">Alta</option>
+        <option value="media">Média</option>
+        <option value="info">Info</option>
+      </select>
+    </label>
+    <button id="btn-aplicar-filtros-alertas" class="self-end bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded">Filtrar</button>
+  </div>`;
   if (estado === 'empty' || alertas.length === 0) {
     return renderPageShell('Alertas', 'Notificações do sistema de monitoramento', `
       ${filtrosHtml}
@@ -90,5 +98,6 @@ export function lerFiltrosAlertasDoDOM() {
     canteiroId: document.getElementById('filtro-alerta-canteiro')?.value || 'todos',
     tipo: document.getElementById('filtro-alerta-tipo')?.value || 'todos',
     periodoDias: parseInt(document.getElementById('filtro-alerta-periodo')?.value || '7', 10),
+    severidade: document.getElementById('filtro-alerta-severidade')?.value || 'todos',
   };
 }

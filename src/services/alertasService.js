@@ -58,7 +58,7 @@ export function derivarAlertasDeLeitura(leitura, canteiroId = CANTEIRO_API_ID) {
 
       tipo: 'umidade',
 
-      severidade: 'media',
+      severidade: 'media',  // severidade ta aqui 
 
       mensagem: `Umidade do solo abaixo de ${THRESHOLD_UMIDADE_ALERTA}%`,
 
@@ -203,17 +203,18 @@ export function derivarAlertasDeHistorico(historico = [], maxAlertas = 20) {
 }
 
 
-
-export function filtrarAlertas(alertas, { canteiroId, tipo, periodoDias } = {}) {
-
-  let lista = [...alertas];
+// aqui 
+//como ta funcionando? ele reduz o numero de alertas a cada if q passa 
+export function filtrarAlertas(alertas, { canteiroId, tipo, periodoDias, severidade } = {}) {
+// recebe lista de de alertas e retorna os que passam nos filtros
+  let lista = [...alertas]; // copia lista original 
 
 
 
   if (canteiroId && canteiroId !== 'todos') {
 
     lista = lista.filter(a => a.canteiroId === canteiroId);
-
+  // filtra por canteiro 
   }
 
 
@@ -221,23 +222,29 @@ export function filtrarAlertas(alertas, { canteiroId, tipo, periodoDias } = {}) 
   if (tipo && tipo !== 'todos') {
 
     lista = lista.filter(a => a.tipo === tipo);
-
+// se for alerta de algum tipo ficam alertas daquele tipo 
   }
 
 
 
   if (periodoDias && periodoDias > 0) {
-
+// filtro de tempo 
     const corte = Date.now() - periodoDias * 24 * 60 * 60 * 1000;
-
+//  data limite da sua procura 
     lista = lista.filter(a => new Date(a.timestamp).getTime() >= corte);
-
+// mostra os alertas no tempo escolhido 
   }
 
+  if (severidade && severidade !== 'todos') {
+    lista = lista.filter(a => a.severidade === severidade);
+
+  }
+  // minha mudanca basiacamente segue a mesma logica de 
+  // afunilamento e so afunila ainda mais prla severidade escolhida 
 
 
   return lista.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
+// ordena do mais recente p mais antigo 
 }
 
 
@@ -281,7 +288,7 @@ export function formatarTipoAlerta(tipo) {
 }
 
 
-
+// converter od dados em texto 
 export function formatarSeveridade(sev) {
 
   const map = { alta: 'Alta', media: 'Média', info: 'Info' };
