@@ -66,14 +66,17 @@ describe('alertasService', () => {
 
   test('filtrarAlertas retorna empty para canteiro sem alertas', () => {
 
-    const todos = obterAlertasCompletos(null, []);
+    const filtros = lerFiltrosAlertasDoDOM();
+
+
 
     const filtrados = filtrarAlertas(todos, { canteiroId: 'B' });
 
     expect(filtrados).toHaveLength(0);
 
   });
-// AQUI 
+
+
 
   test('filtrarAlertas por severidade alta', () => {
     const todos = obterAlertasCompletos(null, obterHistoricoMockado());

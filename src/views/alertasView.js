@@ -46,13 +46,15 @@ export function renderAlertasView({ estado, alertas = [], filtros = {}, erro = n
     <label class="flex flex-col gap-1">
       <span class="text-slate-400 uppercase text-[9px]">Severidade</span>
       <select id="filtro-alerta-severidade" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1">
-        <option value="todos">Todos</option>
-        <option value="alta">Alta</option>
-        <option value="media">Média</option>
-        <option value="info">Info</option>
+        <option value="todos" ${filtros.severidade === 'todos' ? 'selected' : ''}>Todos</option>
+        <option value="alta" ${filtros.severidade === 'alta' ? 'selected' : ''}>Alta</option>
+        <option value="media" ${filtros.severidade === 'media' ? 'selected' : ''}>Média</option>
+        <option value="info" ${filtros.severidade === 'info' ? 'selected' : ''}>Info</option>
       </select>
     </label>
-    <button id="btn-aplicar-filtros-alertas" class="self-end bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded">Filtrar</button>
+    <button id="btn-aplicar-filtros-alertas" class="self-end bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded">
+  Filtrar
+</button>
   </div>`;
   if (estado === 'empty' || alertas.length === 0) {
     return renderPageShell('Alertas', 'Notificações do sistema de monitoramento', `

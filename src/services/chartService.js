@@ -1,3 +1,5 @@
+import { pontoComChuva, pontoComIrrigacao } from './cardHelpers.js';
+
 export function inicializarGraficoAnalitico(canvasCtx, dadosAgrupados, chartInstance, onPontoSelecionado) {
   if (!dadosAgrupados || dadosAgrupados.length === 0) return chartInstance;
 
@@ -93,12 +95,12 @@ export function inicializarGraficoAnalitico(canvasCtx, dadosAgrupados, chartInst
         const xProx = i < totalPontos - 1 ? xScale.getPixelForValue(i + 1) : x + larguraPonto;
         const largura = xProx - x;
 
-        if (p.estaChovendo) {
+        if (pontoComChuva(p)) {
           ctx.fillStyle = 'rgba(14, 165, 233, 0.10)';
           ctx.fillRect(x, top, largura, bottom - top);
         }
-        if (p.statusIrrigacao === 'LIGADO') {
-          ctx.fillStyle = 'rgba(16, 185, 129, 0.13)';
+        if (pontoComIrrigacao(p)) {
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
           ctx.fillRect(x, top, largura, bottom - top);
         }
       });
@@ -144,8 +146,8 @@ export function inicializarGraficoAnalitico(canvasCtx, dadosAgrupados, chartInst
             if (idx == null) return [];
             const p = dadosAgrupados[idx];
             const linhas = [];
-            if (p?.estaChovendo)              linhas.push('  🌧 Chovendo');
-            if (p?.statusIrrigacao === 'LIGADO') linhas.push('  💧 Irrigação ativa');
+            if (pontoComChuva(p)) linhas.push('  🌧 Chovendo');
+            if (pontoComIrrigacao(p)) linhas.push('  💧 Irrigação ativa');
             return linhas;
           }
         }

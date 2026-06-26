@@ -1,6 +1,9 @@
 import { renderNavbar } from './appRenderService.js';
 import { gerarLayoutDashboard } from './dashboardViewService.js';
 import { inicializarGraficoAnalitico } from './chartService.js';
+import { filtrarAlertas, obterAlertasCompletos } from './services/alertasService.js';
+import { renderAlertasView, lerFiltrosAlertasDoDOM } from './views/alertasView.js';
+
 
 const URL_AZURE_PRINCIPAL = 'https://horta-api-htggarb3eagagpgm.brazilsouth-01.azurewebsites.net';
 const URL_RENDER_FALLBACK = 'https://server-horta.onrender.com';
@@ -265,19 +268,20 @@ async function alternarEstadoBomba(bombaManualAtiva) {
 }
 
 function vincularEventos() {
-  document.querySelectorAll('.chk-visibilidade').forEach(chk => {
-    chk.addEventListener('change', (e) => {
-      const idSérie = e.target.getAttribute('data-series');
-      filtrosVisibilidade[idSérie] = e.target.checked;
-      
-      if (chartInstance) {
-        const dataset = chartInstance.data.datasets.find(d => d.id === idSérie);
-        if (dataset) {
-          dataset.hidden = !e.target.checked;
-          chartInstance.update();
-        }
-      }
+  document.getElementById('btn-aplicar-filtros-alertas')
+  ?.addEventListener('click', () => {
+    const filtros = lerFiltrosAlertasDoDOM();
+
+    const todosAlertas = obterAlertasCompletos(telemetriaAtual, dadosGraficoTimelineBrutos);
+
+    const filtrados = filtrarAlertas(todosAlertas, filtros);
+
+    appContainer.innerHTML = renderAlertasView({
+      estado: 'success',
+      alertas: filtrados,
+      filtros,
     });
+ 
   });
 
   document.getElementById('select-unidade-tempo')?.addEventListener('change', (e) => {

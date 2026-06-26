@@ -244,4 +244,25 @@ export function validarCanteiro(dados) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Agregação de flags de chuva / irrigação (buckets do gráfico)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function pontoComChuva(p) {
+  return p?.estaChovendo === true || p?.estaChovendo === 1;
+}
+
+export function pontoComIrrigacao(p) {
+  return p?.statusIrrigacao === 'LIGADO' || p?.statusIrrigacao === 1;
+}
+
+/** Marca bucket se qualquer leitura no intervalo teve chuva ou irrigação. */
+export function agregarFlagsBucket(lista) {
+  return {
+    estaChovendo: lista.some(pontoComChuva),
+    statusIrrigacao: lista.some(pontoComIrrigacao) ? 'LIGADO' : 'DESLIGADO',
+    controleManualAtivo: lista.some(p => p?.controleManualAtivo || p?.modoIrrigacaoManual),
+  };
+}
+
 export { CULTURAS_VALIDAS };

@@ -8,6 +8,8 @@ import {
   calcularDelta,
   formatarTimestamp,
   escapeHtml,
+  pontoComIrrigacao,
+  pontoComChuva,
 } from './cardHelpers.js';
 
 /**
@@ -54,9 +56,11 @@ export function gerarLayoutDashboard({
 
   const statusBadge = baseCenario === 'offline'
     ? `<span class="text-amber-400 font-bold tracking-wide">◉ SIMULAÇÃO</span>`
-    : baseCenario === 'render-live'
-      ? `<span class="text-cyan-400 font-bold tracking-wide">● RENDER</span>`
-      : `<span class="text-emerald-400 font-bold tracking-wide">● AZURE</span>`;
+    : baseCenario === 'tunnel-live'
+      ? `<span class="text-violet-400 font-bold tracking-wide">● TUNNEL</span>`
+      : baseCenario === 'render-live'
+        ? `<span class="text-cyan-400 font-bold tracking-wide">● RENDER</span>`
+        : `<span class="text-emerald-400 font-bold tracking-wide">● AZURE</span>`;
 
   const cacheHint = isCached && fetchedAt
     ? `<span class="text-slate-400 font-normal ml-1">· cache ${formatarIdadeCache(fetchedAt)}</span>`
@@ -71,10 +75,12 @@ export function gerarLayoutDashboard({
     temperatura_c:    obterDado(pontoSelecionado, telemetriaAtual, 'temperatura_c',    'temperatura'),
     ph_solo:          obterDado(pontoSelecionado, telemetriaAtual, 'ph_solo',           'pHSolo'),
     vazao_gotejamento:obterDado(pontoSelecionado, telemetriaAtual, 'vazao_gotejamento','vazaoGotejamentoLh'),
-    irrigacao_ativa:  telemetriaAtual?.statusIrrigacao === 'LIGADO' || telemetriaAtual?.statusIrrigacao === 'LIGADA',
-    status_bomba_manual: telemetriaAtual?.controleManualAtivo ?? false,
+    irrigacao_ativa:  pontoComIrrigacao(telemetriaAtual) || !!pontoSelecionado?.irrigacao_ativa,
+    modo_manual_ativo: (telemetriaAtual?.controleManualAtivo || pontoSelecionado?.controle_manual)
+      && !(pontoComIrrigacao(telemetriaAtual) || !!pontoSelecionado?.irrigacao_ativa),
+    status_bomba_manual: telemetriaAtual?.controleManualAtivo ?? pontoSelecionado?.controle_manual ?? false,
     luz_pct:          pontoSelecionado?.luminosidade_lux ?? telemetriaAtual?.luzSolar ?? 0,
-    esta_chovendo:    telemetriaAtual?.estaChovendo ?? false,
+    esta_chovendo:    pontoComChuva(telemetriaAtual) || !!pontoSelecionado?.esta_chovendo,
   };
 
   const estacaoBruta = pontoSelecionado?.estacao    || telemetriaAtual?.estacao    || '---';
@@ -149,7 +155,9 @@ export function gerarLayoutDashboard({
     ? '💧 Irrigando'
     : d.esta_chovendo
       ? '🌧 Chuva detectada'
-      : null;
+      : d.modo_manual_ativo
+        ? '<span class="text-amber-500">🛠 Modo manual (bomba off)</span>'
+        : null;
 
   const canteirosHtml = statusCanteiros.length ? `
     <div class="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-4">
@@ -218,7 +226,7 @@ export function gerarLayoutDashboard({
             <h2 class="text-[11px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-300 font-mono">
               Centro Analítico · Dados Históricos
             </h2>
-            <p class="text-[9px] font-mono text-slate-400 mt-0.5">Failover Azure → Render → Cache local</p>
+            <p class="text-[9px] font-mono text-slate-400 mt-0.5">Failover Azure → Render → Tunnel → Cache local</p>
           </div>
           <div class="flex items-center gap-2 font-mono text-[10px]">
             <span class="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-md font-bold">

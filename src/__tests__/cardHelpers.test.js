@@ -12,6 +12,9 @@ import {
   escapeHtml,
   sanitizarTextoCanteiro,
   validarCanteiro,
+  pontoComChuva,
+  pontoComIrrigacao,
+  agregarFlagsBucket,
 } from '../services/cardHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -354,5 +357,61 @@ describe('validarCanteiro', () => {
     const r = validarCanteiro({ nome: 'Horta A', cultura: 'Tomate', area_m2: 4.5 });
     expect(r.valido).toBe(true);
     expect(r.area_m2).toBe(4.5);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// agregarFlagsBucket — chuva / irrigação em buckets do gráfico
+// ─────────────────────────────────────────────────────────────────────────────
+describe('pontoComChuva / pontoComIrrigacao', () => {
+  test('aceita boolean e inteiro 0/1', () => {
+    expect(pontoComChuva({ estaChovendo: true })).toBe(true);
+    expect(pontoComChuva({ estaChovendo: 1 })).toBe(true);
+    expect(pontoComChuva({ estaChovendo: 0 })).toBe(false);
+    expect(pontoComIrrigacao({ statusIrrigacao: 'LIGADO' })).toBe(true);
+    expect(pontoComIrrigacao({ statusIrrigacao: 1 })).toBe(true);
+    expect(pontoComIrrigacao({ statusIrrigacao: 0 })).toBe(false);
+  });
+});
+
+describe('agregarFlagsBucket', () => {
+  test('detecta irrigação no meio do bucket (não só no primeiro ponto)', () => {
+    const lista = [
+      { estaChovendo: false, statusIrrigacao: 'DESLIGADO' },
+      { estaChovendo: false, statusIrrigacao: 1 },
+    ];
+    const flags = agregarFlagsBucket(lista);
+    expect(flags.statusIrrigacao).toBe('LIGADO');
+    expect(flags.estaChovendo).toBe(false);
+  });
+
+  test('detecta chuva em qualquer ponto do bucket', () => {
+    const lista = [
+      { estaChovendo: 0, statusIrrigacao: 'DESLIGADO' },
+      { estaChovendo: 1, statusIrrigacao: 0 },
+    ];
+    const flags = agregarFlagsBucket(lista);
+    expect(flags.estaChovendo).toBe(true);
+    expect(flags.statusIrrigacao).toBe('DESLIGADO');
+  });
+
+  test('primeiro ponto seco não oculta irrigação posterior', () => {
+    const soPrimeiro = agregarFlagsBucket([
+      { estaChovendo: false, statusIrrigacao: 'DESLIGADO' },
+    ]);
+    const comIrrigacaoDepois = agregarFlagsBucket([
+      { estaChovendo: false, statusIrrigacao: 'DESLIGADO' },
+      { estaChovendo: false, statusIrrigacao: 'LIGADO' },
+    ]);
+    expect(soPrimeiro.statusIrrigacao).toBe('DESLIGADO');
+    expect(comIrrigacaoDepois.statusIrrigacao).toBe('LIGADO');
+  });
+
+  test('propaga controleManualAtivo se qualquer ponto do bucket estiver em modo manual', () => {
+    const flags = agregarFlagsBucket([
+      { controleManualAtivo: false, statusIrrigacao: 'DESLIGADO' },
+      { modoIrrigacaoManual: true, statusIrrigacao: 0 },
+    ]);
+    expect(flags.controleManualAtivo).toBe(true);
   });
 });

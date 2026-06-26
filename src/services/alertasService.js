@@ -165,7 +165,6 @@ export function derivarAlertasDeLeitura(leitura, canteiroId = CANTEIRO_API_ID) {
 }
 
 
-
 /** Varre histórico da API em busca de leituras que violaram thresholds */
 
 export function derivarAlertasDeHistorico(historico = [], maxAlertas = 20) {
@@ -222,7 +221,7 @@ export function filtrarAlertas(alertas, { canteiroId, tipo, periodoDias, severid
   if (tipo && tipo !== 'todos') {
 
     lista = lista.filter(a => a.tipo === tipo);
-// se for alerta de algum tipo ficam alertas daquele tipo 
+//  alertas daquele tipo 
   }
 
 
@@ -236,8 +235,12 @@ export function filtrarAlertas(alertas, { canteiroId, tipo, periodoDias, severid
   }
 
   if (severidade && severidade !== 'todos') {
-    lista = lista.filter(a => a.severidade === severidade);
-
+    const sev = severidade.toLowerCase().trim();
+  
+    lista = lista.filter(a =>
+      (a.severidade || '').toLowerCase().trim() === sev
+    );
+  
   }
   // minha mudanca basiacamente segue a mesma logica de 
   // afunilamento e so afunila ainda mais prla severidade escolhida 

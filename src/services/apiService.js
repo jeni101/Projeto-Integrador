@@ -3,9 +3,25 @@ import {
   salvarCacheSnapshot,
   toCachedResponse,
 } from './cacheService.js';
+import { pontoComIrrigacao } from './cardHelpers.js';
 
-const PRIMARY_API = 'https://horta-api-htggarb3eagagpgm.brazilsouth-01.azurewebsites.net';
-const FALLBACK_API = 'https://server-horta.onrender.com';
+export const API_BASES = [
+  {
+    url: 'https://horta-api-htggarb3eagagpgm.brazilsouth-01.azurewebsites.net',
+    cenario: 'normal',
+    label: 'Azure',
+  },
+  {
+    url: 'https://server-horta.onrender.com',
+    cenario: 'render-live',
+    label: 'Render',
+  },
+  {
+    url: 'http://localhost:3000',
+    cenario: 'tunnel-live',
+    label: 'Tunnel',
+  },
+];
 
 export const JANELA_HISTORICO_MINUTOS = 10080;
 
@@ -39,9 +55,9 @@ export function normalizarRegistro(log) {
       log.statusIrrigacao === 1 || log.statusIrrigacao === 'LIGADO' ? "LIGADO" : "DESLIGADO"
     ),
     estaChovendo: ca.estaChovendo ?? (log.estaChovendo === 1 || log.estaChovendo === true),
-    vazaoGotejamentoLh: at.vazaoGotejamentoLh ?? (log.statusIrrigacao === 1 ? 2.0 : 0),
-    controleManualAtivo: at.controleManualAtivo ?? false,
-    estacao: ca.estacao ?? log.estacao ?? "---",
+    vazaoGotejamentoLh: at.vazaoGotejamentoLh ?? log.vazaoGotejamentoLh ?? (pontoComIrrigacao(log) ? 2.0 : 0),
+    controleManualAtivo: at.controleManualAtivo ?? log.modoIrrigacaoManual ?? false,
+    estacao: ca.estacao ?? log.estacao ?? log.estacaoCalculada ?? "---",
     condicaoCeu: ca.condicaoCeu ?? log.condicaoCeu ?? "---"
   };
 }
@@ -74,30 +90,24 @@ async function obterHistoricoCompleto(baseUrl) {
 }
 
 async function tentarBuscarApis() {
-  try {
-    const historico = await obterHistoricoCompleto(PRIMARY_API);
-    const ultimaLeitura = historico[historico.length - 1];
-    return {
-      telemetria: ultimaLeitura,
-      historico,
-      cenario: 'normal',
-    };
-  } catch (err) {
-    console.warn(`⚠️ Azure falhou: ${err.message}. Tentando Render...`);
+  const falhas = [];
+
+  for (const { url, cenario, label } of API_BASES) {
+    try {
+      const historico = await obterHistoricoCompleto(url);
+      const ultimaLeitura = historico[historico.length - 1];
+      return {
+        telemetria: ultimaLeitura,
+        historico,
+        cenario,
+      };
+    } catch (err) {
+      falhas.push(`${label}: ${err.message}`);
+      console.warn(`⚠️ ${label} falhou: ${err.message}.`);
+    }
   }
 
-  try {
-    const historico = await obterHistoricoCompleto(FALLBACK_API);
-    const ultimaLeitura = historico[historico.length - 1];
-    return {
-      telemetria: ultimaLeitura,
-      historico,
-      cenario: 'render-live',
-    };
-  } catch (err) {
-    console.error(`💥 Render também falhou: ${err.message}.`);
-  }
-
+  console.error(`💥 Todas as APIs falharam: ${falhas.join(' | ')}`);
   return null;
 }
 
@@ -127,4 +137,50 @@ export async function buscarDadosDispositivo(options = {}) {
     cenario: 'offline',
     fromCache: false,
   };
+}
+
+async function postControleIrrigacao(baseUrl, body) {
+  const resposta = await fetchWithTimeout(`${baseUrl}/api/controle/irrigacao`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!resposta.ok) {
+    throw new Error(`HTTP ${resposta.status} em ${baseUrl}`);
+  }
+
+  return resposta.json();
+}
+
+/**
+ * Envia comando de irrigação manual ao backend (UC-02).
+ * Tenta Azure, Render e Tunnel — mesma ordem de buscarDadosDispositivo.
+ *
+ * @param {boolean} ligar - true para ligar a bomba; false para desligar.
+ * @returns {Promise<{ ok: true, statusAtual: string, mensagem?: string, baseUrl: string } | { ok: false, erro: string }>}
+ */
+export async function enviarComandoIrrigacao(ligar) {
+  if (typeof ligar !== 'boolean') {
+    return { ok: false, erro: "Parâmetro 'ligar' inválido." };
+  }
+
+  const body = { ligar };
+  const falhas = [];
+
+  for (const { url, label } of API_BASES) {
+    try {
+      const dados = await postControleIrrigacao(url, body);
+      return {
+        ok: true,
+        statusAtual: dados.statusAtual ?? (ligar ? 'LIGADO' : 'DESLIGADO'),
+        mensagem: dados.mensagem,
+        baseUrl: url,
+      };
+    } catch (err) {
+      falhas.push(`${label}: ${err.message}`);
+    }
+  }
+
+  return { ok: false, erro: falhas.join(' | ') };
 }

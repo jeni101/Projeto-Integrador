@@ -90,7 +90,26 @@ describe('buscarDadosDispositivo', () => {
     expect(resultado.historico).toHaveLength(1);
   });
 
-  test('retorna cenário offline quando ambas as APIs falham', async () => {
+  test('retorna dados do tertiary (Tunnel) quando Azure e Render falham', async () => {
+    let chamadas = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      chamadas++;
+      if (chamadas <= 2) return Promise.reject(new Error('API timeout'));
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => [mockRegistro],
+      });
+    });
+
+    const resultado = await buscarDadosDispositivo();
+
+    expect(resultado.cenario).toBe('tunnel-live');
+    expect(resultado.historico).toHaveLength(1);
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  test('retorna cenário offline quando todas as APIs falham', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('Sem conexão'));
 
     const resultado = await buscarDadosDispositivo();

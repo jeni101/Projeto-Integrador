@@ -21,7 +21,14 @@ import {
   toCachedResponse,
 } from './cacheService.js';
 import { obterTelemetriaMockada, obterHistoricoMockado } from './mockService.js';
-import { sanitizarEntradaData, sanitizarDuracaoIrrigacao } from './cardHelpers.js';
+import { enviarComandoIrrigacao } from './apiService.js';
+import {
+  sanitizarEntradaData,
+  sanitizarDuracaoIrrigacao,
+  agregarFlagsBucket,
+  pontoComIrrigacao,
+  pontoComChuva,
+} from './cardHelpers.js';
 import {
   iniciarRouter,
   onRouteChange,
@@ -289,10 +296,8 @@ function processarAgrupamentoETempo() {
       temperatura: parseFloat((soma.t / total).toFixed(1)),
       luzSolar: parseFloat((soma.l / total).toFixed(1)),
       pHSolo: parseFloat((soma.p / total).toFixed(2)),
-      estaChovendo: lista[0]?.estaChovendo || false,
-      statusIrrigacao: lista[0]?.statusIrrigacao || 'DESLIGADO',
+      ...agregarFlagsBucket(lista),
       vazaoGotejamentoLh: lista[0]?.vazaoGotejamentoLh || 0,
-      controleManualAtivo: lista[0]?.controleManualAtivo || false,
       estacao: lista[0]?.estacao || '---',
       condicaoCeu: lista[0]?.condicaoCeu || '---',
     };
@@ -306,10 +311,11 @@ function sincronizarPontoSelecionado(p) {
     luminosidade_lux: p.luzSolar ?? 0,
     umidade_ar_pct: p.umidadeAr ?? 0,
     umidade_solo_pct: p.umidadeSoloPorcentagem ?? 0,
-    irrigacao_ativa: p.statusIrrigacao === 'LIGADO',
+    irrigacao_ativa: pontoComIrrigacao(p),
     ph_solo: p.pHSolo || 7,
     vazao_gotejamento: p.vazaoGotejamentoLh || 0,
-    controle_manual: p.controleManualAtivo || false,
+    controle_manual: p.controleManualAtivo || p.modoIrrigacaoManual || false,
+    esta_chovendo: pontoComChuva(p),
     estacao: p.estacao || '---',
     condicao_ceu: p.condicaoCeu || '---',
   };
@@ -536,14 +542,37 @@ function vincularEventosDashboard() {
     persistirSessaoLocal();
   });
 
-  document.getElementById('btn-toggle-bomba')?.addEventListener('click', () => {
+  document.getElementById('btn-toggle-bomba')?.addEventListener('click', async () => {
     if (comandoBloqueado()) return;
+
     const bombaAtiva = estadoApp.telemetriaAtual?.statusIrrigacao === 'LIGADO';
-    const cmd = bombaAtiva
-      ? 'Parar irrigação'
-      : `Iniciar irrigação (${estadoApp.duracaoIrrigacaoSeg}s)`;
-    estadoApp.ultimoComando = cmd;
-    adicionarLogErro('CMD', cmd);
+    const ligar = !bombaAtiva;
+    const cmd = ligar
+      ? `Iniciar irrigação (${estadoApp.duracaoIrrigacaoSeg}s)`
+      : 'Parar irrigação';
+
+    estadoApp.ultimoComando = `${cmd}…`;
+    renderizarTelaAtual();
+
+    const resultado = await enviarComandoIrrigacao(ligar);
+
+    if (resultado.ok) {
+      estadoApp.ultimoComando = `${cmd} — ${resultado.statusAtual}`;
+      adicionarLogErro('CMD', estadoApp.ultimoComando);
+      logInfo('irrigation_command_ok', {
+        ligar,
+        status: resultado.statusAtual,
+        baseUrl: resultado.baseUrl,
+      });
+      persistirSessaoLocal();
+      await processarCicloDadosEUI();
+      return;
+    }
+
+    estadoApp.ultimoComando = `${cmd} — FALHOU`;
+    adicionarLogErro('ERR', resultado.erro || 'Falha ao enviar comando de irrigação');
+    logInfo('irrigation_command_failed', { ligar, erro: resultado.erro });
+    persistirSessaoLocal();
     renderizarTelaAtual();
   });
 }
